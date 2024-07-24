@@ -110,6 +110,76 @@ function scionx_init_gateway_class()
 			);
 		}
 
+		public function process_payment( $order_id )
+		{
+			global $woocommerce;
+
+  			$order = wc_get_order( $order_id );
+
+  			if (empty($order) || empty($this->scionx_token_symbol) || empty($this->scionx_chain_id) || empty($this->scionx_api_key))
+  			{
+  				return array(
+				    'result'   => 'failure',
+				    'messages' => __( 'Error processing checkout. Please try again.', 'woocommerce' )
+				);
+  			}
+
+  			$params = [
+  				'checkout' => [
+  					'amount_in_cents' => round($order->get_total() * 100),
+  					'token_symbol' => $this->scionx_token_symbol,
+  					'chain_id' => $this->scionx_chain_id,
+  					'metadata' => [
+  						'order_id' => $order_id,
+  						'customer_id' => $order_id,
+  					],
+  					'cancel_url' => wc_get_checkout_url(),
+  					'success_url' => $this->get_return_url($order) // https://www.test.com
+  				]
+  			];
+
+			$curl = curl_init();
+
+			curl_setopt_array($curl, array(
+			  	CURLOPT_URL => $this->scionx_base_url . '/v1/checkouts',
+			  	CURLOPT_RETURNTRANSFER => true,
+			  	CURLOPT_ENCODING => '',
+			  	CURLOPT_MAXREDIRS => 10,
+			  	CURLOPT_TIMEOUT => 0,
+			  	CURLOPT_FOLLOWLOCATION => true,
+			  	CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			  	CURLOPT_CUSTOMREQUEST => 'POST',
+			  	CURLOPT_POSTFIELDS => json_encode($params),
+			  	CURLOPT_HTTPHEADER => array(
+				    'Content-Type: application/json',
+				    'Authorization: Bearer ' . $this->scionx_api_key
+			  	),
+			));
+
+			$response = curl_exec($curl);
+
+			curl_close($curl);
+
+			if (!empty($response))
+			{
+				$response = json_decode($response, true);
+
+				if (isset($response['id']) && !empty($response['id']) && isset($response['url']) && !empty($response['url']))
+				{
+					return array(
+					    'result' => 'success',
+					    'redirect' => $response['url']
+				  	);
+				}
+			}
+
+			return array(
+			    'result'   => 'failure',
+			    'messages' => __( 'Error processing checkout. Please try again.', 'woocommerce' )
+			);
+
+		}
+
 		public function webhook()
 		{
 
