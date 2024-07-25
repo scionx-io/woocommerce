@@ -31,7 +31,7 @@ Scionx WooCommerce Payment Gateway Plugin enables WooCommerce stores to accept p
 4. Generate the webhook URL in WooCommerce:
    - Navigate to WooCommerce > Settings > Advanced > Webhooks.
    - Click on "Add Webhook".
-   - Set the webhook topic to "Order Updated" and delivery URL to `https://yourdomain.com/wp-json/scionx/webhook`.
+   - Set the webhook topic to "Order Updated" and delivery URL to `https://yourdomain.com/wc-api/scionx`.
    - Save the webhook.
 5. Copy the generated webhook URL.
 6. Log in to your Scionx admin dashboard.
