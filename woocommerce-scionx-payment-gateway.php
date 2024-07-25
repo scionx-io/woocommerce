@@ -105,7 +105,7 @@ function scionx_init_gateway_class()
 				),
 				'scionx_token_symbol' => array(
 					'title'       => __( 'Token Symbol', 'woocommerce' ),
-					'type'        => 'text'
+					'type'        => 'text',
 				),
 				'scionx_token_symbol'         => array(
 					'title'       => __( 'Token Symbol', 'woocommerce' ),
