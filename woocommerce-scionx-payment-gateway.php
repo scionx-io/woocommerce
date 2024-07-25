@@ -27,6 +27,7 @@ function scionx_init_gateway_class()
 			$this->icon = plugins_url('/images/icon.png', __FILE__ );
 			$this->has_fields = false;
 			$this->method_title = 'Scionx Gateway';
+			$this->webhook_url = home_url() . '/wc-api/' . $this->id;
 			$this->method_description = __( 'Configuration and setup options for Scionx payment gateway', 'woocommerce' );
 
 			$this->init_form_fields();
@@ -37,6 +38,13 @@ function scionx_init_gateway_class()
 			$this->description = $this->get_option( 'description' );
 
 			$this->enabled = $this->get_option( 'enabled' );
+			$this->scionx_show_logo_icon = $this->get_option( 'scionx_show_logo_icon' );
+
+			if (empty($this->scionx_show_logo_icon) || $this->scionx_show_logo_icon == 'no')
+			{
+				$this->icon = '';
+			}
+
 			$this->scionx_api_key = $this->get_option( 'scionx_api_key' );
 			$this->scionx_token_symbol = $this->get_option( 'scionx_token_symbol' );
 			$this->scionx_chain_id = $this->get_option( 'scionx_chain_id' );
@@ -50,8 +58,6 @@ function scionx_init_gateway_class()
 			{
 				$this->scionx_base_url = 'https://api.scionx.io';
 			}
-
-			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 
 			add_action( 'woocommerce_api_' . $this->id, array( $this, 'webhook' ) );
 		}
@@ -80,6 +86,13 @@ function scionx_init_gateway_class()
 					'default'     => __( 'Pay with scionx payment method.', 'woocommerce' ),
 					'desc_tip'    => true,
 				),
+				'scionx_webhook_url'              => array(
+					'title'       => __( 'Webhook URL', 'woocommerce' ),
+					'type'        => 'text',
+					'description' => __( 'Copy this URL and add as a webhook url on <a href="https://app.scionx.dev/setting" target="_blank">scionx settings</a> page in dashboard', 'woocommerce' ),
+					'default'     => $this->webhook_url,
+					'custom_attributes' => ['readonly' => 'readonly'],
+				),
 				'instructions'       => array(
 					'title'       => __( 'Instructions', 'woocommerce' ),
 					'type'        => 'textarea',
@@ -104,6 +117,14 @@ function scionx_init_gateway_class()
 					'label'       => __( 'Enable staging mode', 'woocommerce' ),
 					'type'        => 'checkbox',
 					'description' => __( 'Place the scionx payment gateway in staging mode using test API keys.', 'woocommerce' ),
+					'default'     => 'yes',
+					'desc_tip'    => true,
+				),
+				'scionx_show_logo_icon' => array(
+					'title'       => __( 'Show scionx logo on checkout', 'woocommerce' ),
+					'label'       => __( 'Yes', 'woocommerce' ),
+					'type'        => 'checkbox',
+					'description' => __( 'Scionx logo will be displayed along with payment method on checkout page', 'woocommerce' ),
 					'default'     => 'yes',
 					'desc_tip'    => true,
 				),
@@ -134,7 +155,7 @@ function scionx_init_gateway_class()
   						'customer_id' => $order_id,
   					],
   					'cancel_url' => wc_get_checkout_url(),
-  					'success_url' => $this->get_return_url($order) // https://www.test.com
+  					'success_url' => $this->get_return_url($order)
   				]
   			];
 
@@ -182,8 +203,51 @@ function scionx_init_gateway_class()
 
 		public function webhook()
 		{
+			if (isset($_REQUEST['event']) && !empty($_REQUEST['event']) && strtolower($_REQUEST['event']) == 'charge.completed' && isset($_REQUEST['data']['checkout']['metadata']['order_id']) && !empty($_REQUEST['data']['checkout']['metadata']['order_id']))
+			{
+				$order_id = $_REQUEST['data']['checkout']['metadata']['order_id'];
 
+				$order = wc_get_order( $order_id );
+
+				if (!empty($order))
+				{
+					$order->payment_complete();
+					$order->reduce_order_stock();
+
+					update_post_meta($order_id, 'scionx_webhook_response', $_REQUEST);
+				}
+			}
+
+			update_option( 'scionx_webhook_response_debug', $_REQUEST );
 		}
 	}
 }
 add_action( 'plugins_loaded', 'scionx_init_gateway_class' );
+
+function scionx_woocommerce_blocks_loaded()
+{
+	if ( ! class_exists( 'Automattic\WooCommerce\Blocks\Payments\Integrations\AbstractPaymentMethodType' ) )
+	{
+    	return;
+    }
+
+	require_once plugin_dir_path(__FILE__) . '/inc/class-wc-scionx-gateway-blocks-support.php';
+
+	add_action(
+		'woocommerce_blocks_payment_method_type_registration',
+		function( Automattic\WooCommerce\Blocks\Payments\PaymentMethodRegistry $payment_method_registry )
+		{
+			$payment_method_registry->register( new WC_Scionx_Gateway_Blocks_Support );
+		}
+	);
+}
+add_action( 'woocommerce_blocks_loaded', 'scionx_woocommerce_blocks_loaded' );
+
+function scionx_before_woocommerce_init()
+{
+    if (class_exists('\Automattic\WooCommerce\Utilities\FeaturesUtil'))
+    {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
+    }
+}
+add_action('before_woocommerce_init', 'scionx_before_woocommerce_init');
