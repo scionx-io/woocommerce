@@ -47,7 +47,6 @@ function scionx_init_gateway_class()
 
 			$this->scionx_api_key = $this->get_option( 'scionx_api_key' );
 			$this->scionx_token_symbol = $this->get_option( 'scionx_token_symbol' );
-			$this->scionx_chain_id = $this->get_option( 'scionx_chain_id' );
 			$this->scionx_mode = $this->get_option( 'scionx_mode' );
 
 			if (!empty($this->scionx_mode))
@@ -108,9 +107,13 @@ function scionx_init_gateway_class()
 					'title'       => __( 'Token Symbol', 'woocommerce' ),
 					'type'        => 'text'
 				),
-				'scionx_chain_id' => array(
-					'title'       => __( 'Chain ID', 'woocommerce' ),
-					'type'        => 'text'
+				'scionx_token_symbol'         => array(
+					'title'       => __( 'Token Symbol', 'woocommerce' ),
+					'type'        => 'select',
+					'default'     => 'USDC',
+					'options'     => array(
+						'USDC'          => __( 'USDC', 'woocommerce' ),
+					),
 				),
 				'scionx_mode' => array(
 					'title'       => __( 'Staging mode', 'woocommerce' ),
@@ -137,7 +140,7 @@ function scionx_init_gateway_class()
 
   			$order = wc_get_order( $order_id );
 
-  			if (empty($order) || empty($this->scionx_token_symbol) || empty($this->scionx_chain_id) || empty($this->scionx_api_key))
+  			if (empty($order) || empty($this->scionx_token_symbol) || empty($this->scionx_api_key))
   			{
   				return array(
 				    'result'   => 'failure',
@@ -149,7 +152,6 @@ function scionx_init_gateway_class()
   				'checkout' => [
   					'amount_in_cents' => round($order->get_total() * 100),
   					'token_symbol' => $this->scionx_token_symbol,
-  					'chain_id' => $this->scionx_chain_id,
   					'metadata' => [
   						'order_id' => $order_id,
   						'customer_id' => $order_id,
