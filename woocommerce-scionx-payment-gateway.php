@@ -222,6 +222,11 @@ function scionx_init_gateway_class()
 						$order->payment_complete();
 						$order->reduce_order_stock();
 
+						if (isset($response_data['data']['id']) && !empty($response_data['data']['id']))
+						{
+							$order->set_transaction_id($response_data['data']['id']);
+						}
+
 						update_post_meta($order_id, 'scionx_webhook_response', $response_data);
 					}
 				}
@@ -258,3 +263,41 @@ function scionx_before_woocommerce_init()
     }
 }
 add_action('before_woocommerce_init', 'scionx_before_woocommerce_init');
+
+function custom_shop_order_column( $columns )
+{
+    $ordered_columns = array();
+
+    foreach( $columns as $key => $column )
+    {
+        $ordered_columns[$key] = $column;
+
+        if( 'order_date' == $key )
+        {
+            $ordered_columns['transaction_id'] = __( 'Transaction id', 'woocommerce');
+        }
+    }
+
+    return $ordered_columns;
+}
+add_filter( 'manage_edit-shop_order_columns', 'custom_shop_order_column', 100 );
+
+function custom_shop_order_list_column_content( $column )
+{
+    global $post, $the_order;
+
+    if ( 'transaction_id' === $column )
+    {
+    	$response_data = get_post_meta($order_id, 'scionx_webhook_response', true);
+
+    	if (isset($response_data['data']['id']) && !empty($response_data['data']['id']))
+    	{
+    		echo $response_data['data']['id'];
+    	}
+    	else
+    	{
+    		echo $the_order->get_transaction_id();
+    	}
+    }
+}
+add_action( 'manage_shop_order_posts_custom_column', 'custom_shop_order_list_column_content', 10, 1 );
