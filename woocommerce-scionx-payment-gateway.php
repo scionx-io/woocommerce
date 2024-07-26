@@ -205,22 +205,27 @@ function scionx_init_gateway_class()
 
 		public function webhook()
 		{
-			if (isset($_REQUEST['event']) && !empty($_REQUEST['event']) && strtolower($_REQUEST['event']) == 'charge.completed' && isset($_REQUEST['data']['checkout']['metadata']['order_id']) && !empty($_REQUEST['data']['checkout']['metadata']['order_id']))
+			$response_data = file_get_contents('php://input');
+
+			if (!empty($response_data))
 			{
-				$order_id = $_REQUEST['data']['checkout']['metadata']['order_id'];
+				$response_data = json_decode($response_data, true);
 
-				$order = wc_get_order( $order_id );
-
-				if (!empty($order))
+				if (!empty($response_data) && isset($response_data['event']) && !empty($response_data['event']) && strtolower($response_data['event']) == 'charge.completed' && isset($response_data['data']['checkout']['metadata']['order_id']) && !empty($response_data['data']['checkout']['metadata']['order_id']))
 				{
-					$order->payment_complete();
-					$order->reduce_order_stock();
+					$order_id = $response_data['data']['checkout']['metadata']['order_id'];
 
-					update_post_meta($order_id, 'scionx_webhook_response', $_REQUEST);
+					$order = wc_get_order( $order_id );
+
+					if (!empty($order))
+					{
+						$order->payment_complete();
+						$order->reduce_order_stock();
+
+						update_post_meta($order_id, 'scionx_webhook_response', $response_data);
+					}
 				}
 			}
-
-			update_option( 'scionx_webhook_response_debug', $_REQUEST );
 		}
 	}
 }
