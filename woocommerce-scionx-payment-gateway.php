@@ -288,7 +288,7 @@ function custom_shop_order_list_column_content( $column )
 
     if ( 'transaction_id' === $column )
     {
-    	$response_data = get_post_meta($order_id, 'scionx_webhook_response', true);
+    	$response_data = get_post_meta($post->ID, 'scionx_webhook_response', true);
 
     	if (isset($response_data['data']['id']) && !empty($response_data['data']['id']))
     	{
@@ -301,3 +301,37 @@ function custom_shop_order_list_column_content( $column )
     }
 }
 add_action( 'manage_shop_order_posts_custom_column', 'custom_shop_order_list_column_content', 10, 1 );
+
+function ga_add_meta_boxes($post_type, $post)
+{
+	if ($post_type == 'woocommerce_page_wc-orders' || $post_type == 'shop_order')
+	{
+		$response_data = get_post_meta($post->ID, 'scionx_webhook_response', true);
+
+		if (!empty($response_data))
+		{
+			add_meta_box("scionx-order-meta-box", __( 'Scionx', 'woocommerce' ), "ga_order_meta_box_callback", $post_type);
+		}
+	}
+}
+add_action( 'add_meta_boxes', 'ga_add_meta_boxes', 10, 2 );
+
+function ga_order_meta_box_callback( $post )
+{
+    $response_data = get_post_meta($post->ID, 'scionx_webhook_response', true);
+
+    if (!empty($response_data) && isset($response_data['data']['id']) && !empty($response_data['data']['id']))
+    {
+    	echo '<h4 style="margin-bottom: 0; display: inline;">ID:</h4> <span class="order-attribution-total-orders">'. $response_data['data']['id'] .'</span><br/><br/>';
+    }
+
+    if (!empty($response_data) && isset($response_data['data']['tx']) && !empty($response_data['data']['tx']))
+    {
+    	echo '<h4 style="margin-bottom: 0; display: inline;">TX:</h4> <span class="order-attribution-total-orders">'. $response_data['data']['tx'] .'</span><br/><br/>';
+    }
+
+    if (!empty($response_data) && isset($response_data['data']['chain']) && !empty($response_data['data']['chain']))
+    {
+    	echo '<h4 style="margin-bottom: 0; display: inline;">Chain ID:</h4> <span class="order-attribution-total-orders">'. $response_data['data']['chain'] .'</span>';
+    }
+}
